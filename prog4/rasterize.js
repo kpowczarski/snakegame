@@ -10,7 +10,7 @@ var lightDiffuse = vec3.fromValues(1,1,1); // default light diffuse emission
 var lightSpecular = vec3.fromValues(1,1,1); // default light specular emission
 var lightPosition = vec3.fromValues(-1,3,-0.5); // default light position
 var rotateTheta = Math.PI/50; // how much to rotate models by with each key press
-var Blinn_Phong = true;
+var Blended = false;
 /* webgl and geometry data */
 var gl = null; // the all powerful gl object. It's all here folks!
 var inputTriangles = []; // the triangle data as loaded from input files
@@ -33,7 +33,8 @@ var ambientULoc; // where to put ambient reflecivity for fragment shader
 var diffuseULoc; // where to put diffuse reflecivity for fragment shader
 var specularULoc; // where to put specular reflecivity for fragment shader
 var shininessULoc; // where to put specular exponent for fragment shader
-var Blinn_PhongULoc;
+var BlendedULoc;
+var alphaULoc;
 /* interaction variables */
 var Eye = vec3.clone(defaultEye); // eye position in world space
 var Center = vec3.clone(defaultCenter); // view direction in world space
@@ -215,7 +216,7 @@ function handleKeyDown(event) {
                 translateModel(vec3.scale(temp,Up,-viewDelta));
             break;
         case "KeyB":
-        		Blinn_Phong = !Blinn_Phong;
+        		Blended = !Blended;
         	break;
         case "KeyN":
         		handleKeyDown.modelOn.material.n = (handleKeyDown.modelOn.material.n + 1)%20;
@@ -285,7 +286,7 @@ function setupWebGL() {
     
      // create a webgl canvas and set it up
      var webGLCanvas = document.getElementById("myWebGLCanvas"); // create a webgl canvas
-     gl = webGLCanvas.getContext("webgl"); // get a webgl object from it
+     gl = webGLCanvas.getContext("webgl", {premultipliedAlpha: true}); // get a webgl object from it
      try {
        if (gl == null) {
          throw "unable to create gl context -- is your browser gl ready?";
@@ -293,6 +294,10 @@ function setupWebGL() {
          //gl.clearColor(0.0, 0.0, 0.0, 1.0); // use black when we clear the frame buffer
          gl.clearDepth(1.0); // use max when we clear the depth buffer
          gl.enable(gl.DEPTH_TEST); // use hidden surface removal (with zbuffering)
+         gl.enable(gl.BLEND);
+         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+         
        }
      } // end try
      
@@ -303,11 +308,24 @@ function setupWebGL() {
  
 } // end setupWebGL
 
+function compareFunction(t1, t2) {
+	if (t1.material.alpha > t2.material.alpha) {
+		return -1;
+	}
+	else if (t1.material.alpha < t2.material.alpha) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
 // read models in, load them into webgl buffers
 function loadModels() {
     
     
     inputTriangles = getJSONFile(INPUT_TRIANGLES_URL,"triangles"); // read in the triangle data
+    inputTriangles.sort(compareFunction)
 
     try {
         if (inputTriangles == String.null)
@@ -436,7 +454,8 @@ function setupShaders() {
         uniform vec3 uDiffuse; // the diffuse reflectivity
         uniform vec3 uSpecular; // the specular reflectivity
         uniform float uShininess; // the specular exponent
-        uniform bool Blinn_Phong;  // Blinn_Phong x Phong toggle
+        uniform float uAlpha;
+        uniform bool Blended;  // Blended x Phong toggle
         // geometry properties
         varying vec3 vWorldPos; // world xyz of fragment
         varying vec3 vVertexNormal; // normal of fragment
@@ -459,16 +478,18 @@ function setupShaders() {
             float ndotLight = 2.0*dot(normal, light);
             vec3 reflectVec = normalize(ndotLight*normal - light);
             float highlight = 0.0;
-            if(Blinn_Phong)
-           	 	highlight = pow(max(0.0,dot(normal,halfVec)),uShininess);
-           	else 
-           		highlight = pow(max(0.0,dot(normal,reflectVec)),uShininess);
+            highlight = pow(max(0.0,dot(normal,halfVec)),uShininess);
+           	//else 
+           		//highlight = pow(max(0.0,dot(normal,reflectVec)),uShininess);
 
             vec3 specular = uSpecular*uLightSpecular*highlight; // specular term
             
             // combine to output color
             vec3 colorOut = ambient + diffuse + specular; // no specular yet
-            gl_FragColor = vec4(colorOut, 1.0); 
+            if(Blended)
+            	gl_FragColor = vec4(colorOut, uAlpha) * texture2D(uSamp, vVertexUV);
+           	else
+            	gl_FragColor = texture2D(uSamp, vVertexUV);
         }
     `;
     
@@ -519,7 +540,8 @@ function setupShaders() {
                 diffuseULoc = gl.getUniformLocation(shaderProgram, "uDiffuse"); // ptr to diffuse
                 specularULoc = gl.getUniformLocation(shaderProgram, "uSpecular"); // ptr to specular
                 shininessULoc = gl.getUniformLocation(shaderProgram, "uShininess"); // ptr to shininess
-                Blinn_PhongULoc = gl.getUniformLocation(shaderProgram, "Blinn_Phong");
+                alphaULoc = gl.getUniformLocation(shaderProgram, "uAlpha");
+                BlendedULoc = gl.getUniformLocation(shaderProgram, "Blended");
                 // pass global constants into fragment uniforms
                 gl.uniform3fv(eyePositionULoc,Eye); // pass in the eye's position
                 gl.uniform3fv(lightAmbientULoc,lightAmbient); // pass in the light's ambient emission
@@ -603,7 +625,8 @@ function renderModels() {
         gl.uniform3fv(diffuseULoc,currSet.material.diffuse); // pass in the diffuse reflectivity
         gl.uniform3fv(specularULoc,currSet.material.specular); // pass in the specular reflectivity
         gl.uniform1f(shininessULoc,currSet.material.n); // pass in the specular exponent
-        gl.uniform1i(Blinn_PhongULoc, Blinn_Phong);
+        gl.uniform1f(alphaULoc, currSet.material.alpha);
+        gl.uniform1i(BlendedULoc, Blended);
         // vertex buffer: activate and feed into vertex shader
         gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffers[whichTriSet]); // activate
         gl.vertexAttribPointer(vPosAttribLoc,3,gl.FLOAT,false,0,0); // feed
@@ -613,6 +636,17 @@ function renderModels() {
         gl.vertexAttribPointer(vUVAttribLoc,2,gl.FLOAT,false,0,0);
 
         // triangle buffer: activate and render
+        //gl.activeTexture(gl.TEXTURE0);
+//        if (currSet.material.alpha >= .5) {
+//        	gl.clearDepth(1.0);
+//        	gl.depthMask(true);
+//        }
+//        else {
+//        	gl.clearDepth(1.0);
+//        	gl.depthMask(false);
+//        }
+        debugger;
+        gl.bindTexture(gl.TEXTURE_2D, textureArray[whichTriSet]);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffers[whichTriSet]); // activate
         gl.drawElements(gl.TRIANGLES,3*triSetSizes[whichTriSet],gl.UNSIGNED_SHORT,0); // render
         
