@@ -14,6 +14,7 @@ var Blended = false;
 /* webgl and geometry data */
 var gl = null; // the all powerful gl object. It's all here folks!
 var inputTriangles = []; // the triangle data as loaded from input files
+var copyOfTri = [];
 var numTriangleSets = 0; // how many triangle sets in input scene
 var inputEllipsoids = []; // the ellipsoid data as loaded from input files
 var numEllipsoids = 0; // how many ellipsoids in the input scene
@@ -319,13 +320,45 @@ function compareFunction(t1, t2) {
 		return 0;
 	}
 }
+function compareFunctionDepth(t1, t2) {
+	if (t1.material.alpha == 1.0 || t2.material.alpha == 1.0) {
+		return 0;
+	}
+	if (t1.center[2] > t2.center[2]) {
+		return -1;
+	}
+	else if (t1.center[2] < t2.center[2]) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+function compareFunctionDepthAfterTrans(t1, t2) {
+	if (t1.material.alpha == 1.0 || t2.material.alpha == 1.0) {
+		return 0;
+	}
+	var t1t = t1.center[2] + t1.translation[2];
+	var t2t = t2.center[2] + t2.translation[2];
+	if (t1t  > t2t) {
+		return -1;
+	}
+	else if (t1t < t2t) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
 
 // read models in, load them into webgl buffers
 function loadModels() {
     
     
     inputTriangles = getJSONFile(INPUT_TRIANGLES_URL,"triangles"); // read in the triangle data
-    inputTriangles.sort(compareFunction)
+    inputTriangles.sort(compareFunction);
+    console.log(inputTriangles);
 
     try {
         if (inputTriangles == String.null)
@@ -341,7 +374,7 @@ function loadModels() {
             var minCorner = vec3.fromValues(Number.MAX_VALUE,Number.MAX_VALUE,Number.MAX_VALUE); // other corner
         
             // process each triangle set to load webgl vertex and triangle buffers
-            numTriangleSets = inputTriangles.length; // remember how many tri sets
+            numTriangleSets = inputTriangles.length; // remember how many tri sets 
             for (var whichSet=0; whichSet<numTriangleSets; whichSet++) { // for each tri set
                 
                 // set up hilighting, modeling translation and rotation
@@ -355,6 +388,7 @@ function loadModels() {
                 inputTriangles[whichSet].glVertices = []; // flat coord list for webgl
                 inputTriangles[whichSet].glNormals = []; // flat normal list for webgl
                 inputTriangles[whichSet].glUVs = [];
+                copyOfTri[whichSet] = inputTriangles[whichSet];
                 var numVerts = inputTriangles[whichSet].vertices.length; // num vertices in tri set
                 for (whichSetVert=0; whichSetVert<numVerts; whichSetVert++) { // verts in set
                     vtxToAdd = inputTriangles[whichSet].vertices[whichSetVert]; // get vertex to add
@@ -396,6 +430,7 @@ function loadModels() {
             } // end for each triangle set 
         	var temp = vec3.create();
         	viewDelta = vec3.length(vec3.subtract(temp,maxCorner,minCorner)) / 100; // set global
+        	inputTriangles.sort(compareFunctionDepth);
         } // end if triangle file loaded
     } // end try 
     
@@ -608,6 +643,8 @@ function renderModels() {
     mat4.lookAt(vMatrix,Eye,Center,Up); // create view matrix
     mat4.multiply(pvMatrix,pvMatrix,pMatrix); // projection
     mat4.multiply(pvMatrix,pvMatrix,vMatrix); // projection * view
+    
+    
 
     // render each triangle set
     var currSet; // the tri set and its material properties
@@ -616,6 +653,7 @@ function renderModels() {
         
         // make model transform, add to view project
         makeModelTransform(currSet);
+        //console.log(currSet.translation);
         mat4.multiply(pvmMatrix,pvMatrix,mMatrix); // project * view * model
         gl.uniformMatrix4fv(mMatrixULoc, false, mMatrix); // pass in the m matrix
         gl.uniformMatrix4fv(pvmMatrixULoc, false, pvmMatrix); // pass in the hpvm matrix
@@ -645,7 +683,6 @@ function renderModels() {
 //        	gl.clearDepth(1.0);
 //        	gl.depthMask(false);
 //        }
-        debugger;
         gl.bindTexture(gl.TEXTURE_2D, textureArray[whichTriSet]);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffers[whichTriSet]); // activate
         gl.drawElements(gl.TRIANGLES,3*triSetSizes[whichTriSet],gl.UNSIGNED_SHORT,0); // render
