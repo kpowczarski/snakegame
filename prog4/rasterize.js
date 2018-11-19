@@ -73,198 +73,11 @@ function getJSONFile(url,descr) {
 // does stuff when keys are pressed
 function handleKeyDown(event) {
     
-    const modelEnum = {TRIANGLES: "triangles", ELLIPSOID: "ellipsoid"}; // enumerated model type
-    const dirEnum = {NEGATIVE: -1, POSITIVE: 1}; // enumerated rotation direction
     
-    function highlightModel(modelType,whichModel) {
-        if (handleKeyDown.modelOn != null)
-            handleKeyDown.modelOn.on = false;
-        handleKeyDown.whichOn = whichModel;
-        if (modelType == modelEnum.TRIANGLES)
-            handleKeyDown.modelOn = inputTriangles[whichModel]; 
-        else
-            handleKeyDown.modelOn = inputEllipsoids[whichModel]; 
-        handleKeyDown.modelOn.on = true; 
-    } // end highlight model
-    
-    function translateModel(offset) {
-        if (handleKeyDown.modelOn != null)
-            vec3.add(handleKeyDown.modelOn.translation,handleKeyDown.modelOn.translation,offset);
-    } // end translate model
-
-    function rotateModel(axis,direction) {
-        if (handleKeyDown.modelOn != null) {
-            var newRotation = mat4.create();
-
-            mat4.fromRotation(newRotation,direction*rotateTheta,axis); // get a rotation matrix around passed axis
-            vec3.transformMat4(handleKeyDown.modelOn.xAxis,handleKeyDown.modelOn.xAxis,newRotation); // rotate model x axis tip
-            vec3.transformMat4(handleKeyDown.modelOn.yAxis,handleKeyDown.modelOn.yAxis,newRotation); // rotate model y axis tip
-        } // end if there is a highlighted model
-    } // end rotate model
-    
-    // set up needed view params
-    var lookAt = vec3.create(), viewRight = vec3.create(), temp = vec3.create(); // lookat, right & temp vectors
-    lookAt = vec3.normalize(lookAt,vec3.subtract(temp,Center,Eye)); // get lookat vector
-    viewRight = vec3.normalize(viewRight,vec3.cross(temp,lookAt,Up)); // get view right vector
-    
-    // highlight static variables
-    handleKeyDown.whichOn = handleKeyDown.whichOn == undefined ? -1 : handleKeyDown.whichOn; // nothing selected initially
-    handleKeyDown.modelOn = handleKeyDown.modelOn == undefined ? null : handleKeyDown.modelOn; // nothing selected initially
-
     switch (event.code) {
-        
-        // model selection
-        case "Space": 
-            if (handleKeyDown.modelOn != null)
-                handleKeyDown.modelOn.on = false; // turn off highlighted model
-            handleKeyDown.modelOn = null; // no highlighted model
-            handleKeyDown.whichOn = -1; // nothing highlighted
-            break;
-        case "ArrowRight": // select next triangle set
-            highlightModel(modelEnum.TRIANGLES,(handleKeyDown.whichOn+1) % numTriangleSets);
-            break;
-        case "ArrowLeft": // select previous triangle set
-            highlightModel(modelEnum.TRIANGLES,(handleKeyDown.whichOn > 0) ? handleKeyDown.whichOn-1 : numTriangleSets-1);
-            break;
-        
-            
-        // view change
-        case "KeyA": // translate view left, rotate left with shift
-            Center = vec3.add(Center,Center,vec3.scale(temp,viewRight,viewDelta));
-            if (!event.getModifierState("Shift"))
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,viewRight,viewDelta));
-            break;
-        case "KeyD": // translate view right, rotate right with shift
-            Center = vec3.add(Center,Center,vec3.scale(temp,viewRight,-viewDelta));
-            if (!event.getModifierState("Shift"))
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,viewRight,-viewDelta));
-            break;
-        case "KeyS": // translate view backward, rotate up with shift
-            if (event.getModifierState("Shift")) {
-                Center = vec3.add(Center,Center,vec3.scale(temp,Up,viewDelta));
-                Up = vec3.cross(Up,viewRight,vec3.subtract(lookAt,Center,Eye)); /* global side effect */
-            } else {
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,lookAt,-viewDelta));
-                Center = vec3.add(Center,Center,vec3.scale(temp,lookAt,-viewDelta));
-            } // end if shift not pressed
-            break;
-        case "KeyW": // translate view forward, rotate down with shift
-            if (event.getModifierState("Shift")) {
-                Center = vec3.add(Center,Center,vec3.scale(temp,Up,-viewDelta));
-                Up = vec3.cross(Up,viewRight,vec3.subtract(lookAt,Center,Eye)); /* global side effect */
-            } else {
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,lookAt,viewDelta));
-                Center = vec3.add(Center,Center,vec3.scale(temp,lookAt,viewDelta));
-            } // end if shift not pressed
-            break;
-        case "KeyQ": // translate view up, rotate counterclockwise with shift
-            if (event.getModifierState("Shift"))
-                Up = vec3.normalize(Up,vec3.add(Up,Up,vec3.scale(temp,viewRight,-viewDelta)));
-            else {
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,Up,viewDelta));
-                Center = vec3.add(Center,Center,vec3.scale(temp,Up,viewDelta));
-            } // end if shift not pressed
-            break;
-        case "KeyE": // translate view down, rotate clockwise with shift
-            if (event.getModifierState("Shift"))
-                Up = vec3.normalize(Up,vec3.add(Up,Up,vec3.scale(temp,viewRight,viewDelta)));
-            else {
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,Up,-viewDelta));
-                Center = vec3.add(Center,Center,vec3.scale(temp,Up,-viewDelta));
-            } // end if shift not pressed
-            break;
-        case "Escape": // reset view to default
-            Eye = vec3.copy(Eye,defaultEye);
-            Center = vec3.copy(Center,defaultCenter);
-            Up = vec3.copy(Up,defaultUp);
-            break;
-            
-        // model transformation
-        case "KeyK": // translate left, rotate left with shift
-            if (event.getModifierState("Shift"))
-                rotateModel(Up,dirEnum.NEGATIVE);
-            else
-                translateModel(vec3.scale(temp,viewRight,viewDelta));
-            break;
-        case "Semicolon": // translate right, rotate right with shift
-            if (event.getModifierState("Shift"))
-                rotateModel(Up,dirEnum.POSITIVE);
-            else
-                translateModel(vec3.scale(temp,viewRight,-viewDelta));
-            break;
-        case "KeyL": // translate backward, rotate up with shift
-            if (event.getModifierState("Shift"))
-                rotateModel(viewRight,dirEnum.POSITIVE);
-            else
-                translateModel(vec3.scale(temp,lookAt,-viewDelta));
-            break;
-        case "KeyO": // translate forward, rotate down with shift
-            if (event.getModifierState("Shift"))
-                rotateModel(viewRight,dirEnum.NEGATIVE);
-            else
-                translateModel(vec3.scale(temp,lookAt,viewDelta));
-            break;
-        case "KeyI": // translate up, rotate counterclockwise with shift 
-            if (event.getModifierState("Shift"))
-                rotateModel(lookAt,dirEnum.POSITIVE);
-            else
-                translateModel(vec3.scale(temp,Up,viewDelta));
-            break;
-        case "KeyP": // translate down, rotate clockwise with shift
-            if (event.getModifierState("Shift"))
-                rotateModel(lookAt,dirEnum.NEGATIVE);
-            else
-                translateModel(vec3.scale(temp,Up,-viewDelta));
-            break;
         case "KeyB":
         		Blended = !Blended;
-        	break;
-        case "KeyN":
-        		handleKeyDown.modelOn.material.n = (handleKeyDown.modelOn.material.n + 1)%20;
-        		console.log(handleKeyDown.modelOn.material.n);
-        	break;
-        case "Numpad1":
-        		vec3.add(handleKeyDown.modelOn.material.ambient, handleKeyDown.modelOn.material.ambient, vec3.fromValues(0.1,0.1,0.1));
-        		if(handleKeyDown.modelOn.material.ambient[0] > 1.0)
-        			handleKeyDown.modelOn.material.ambient[0] = 0;
-        		if(handleKeyDown.modelOn.material.ambient[1] > 1.0)
-        			handleKeyDown.modelOn.material.ambient[1] = 0;
-        		if(handleKeyDown.modelOn.material.ambient[2] > 1.0)
-        			handleKeyDown.modelOn.material.ambient[2] = 0;
-        		console.log(handleKeyDown.modelOn.material.ambient);
-        	break;
-        case "Numpad2":        		 
-        		vec3.add(handleKeyDown.modelOn.material.diffuse, handleKeyDown.modelOn.material.diffuse, vec3.fromValues(0.1,0.1,0.1));
-        		if(handleKeyDown.modelOn.material.diffuse[0] > 1.0)
-        			handleKeyDown.modelOn.material.diffuse[0] = 0;
-        		if(handleKeyDown.modelOn.material.diffuse[1] > 1.0)
-        			handleKeyDown.modelOn.material.diffuse[1] = 0;
-        		if(handleKeyDown.modelOn.material.diffuse[2] > 1.0)
-        			handleKeyDown.modelOn.material.diffuse[2] = 0;
-        		console.log(handleKeyDown.modelOn.material.diffuse);
-        	break;
-         case "Numpad3":        		 
-        		vec3.add(handleKeyDown.modelOn.material.specular, handleKeyDown.modelOn.material.specular, vec3.fromValues(0.1,0.1,0.1));
-        		if(handleKeyDown.modelOn.material.specular[0] > 1.0)
-        			handleKeyDown.modelOn.material.specular[0] = 0;
-        		if(handleKeyDown.modelOn.material.specular[1] > 1.0)
-        			handleKeyDown.modelOn.material.specular[1] = 0;
-        		if(handleKeyDown.modelOn.material.specular[2] > 1.0)
-        			handleKeyDown.modelOn.material.specular[2] = 0;
-        		console.log(handleKeyDown.modelOn.material.specular);
-        	break;
-        case "Backspace": // reset model transforms to default
-            for (var whichTriSet=0; whichTriSet<numTriangleSets; whichTriSet++) {
-                vec3.set(inputTriangles[whichTriSet].translation,0,0,0);
-                vec3.set(inputTriangles[whichTriSet].xAxis,1,0,0);
-                vec3.set(inputTriangles[whichTriSet].yAxis,0,1,0);
-            } // end for all triangle sets
-            for (var whichEllipsoid=0; whichEllipsoid<numEllipsoids; whichEllipsoid++) {
-                vec3.set(inputEllipsoids[whichEllipsoid].translation,0,0,0);
-                vec3.set(inputEllipsoids[whichTriSet].xAxis,1,0,0);
-                vec3.set(inputEllipsoids[whichTriSet].yAxis,0,1,0);
-            } // end for all ellipsoids
-            break;
+        	break;        
     } // end switch
 } // end handleKeyDown
 
@@ -334,21 +147,39 @@ function compareFunctionDepth(t1, t2) {
 		return 0;
 	}
 }
-function compareFunctionDepthAfterTrans(t1, t2) {
-	if (t1.material.alpha == 1.0 || t2.material.alpha == 1.0) {
-		return 0;
-	}
-	var t1t = t1.center[2] + t1.translation[2];
-	var t2t = t2.center[2] + t2.translation[2];
-	if (t1t  > t2t) {
-		return -1;
-	}
-	else if (t1t < t2t) {
-		return 1;
-	}
-	else {
-		return 0;
-	}
+function createTriangleArray() {
+	var triArray = [];
+    for (var i = 0; i < inputTriangles.length; i++) {
+    	for (var j = 0; j < inputTriangles[i].triangles.length; j++) {
+    		triArray.push({
+    			"material": {
+    				"ambient": inputTriangles[i].material.ambient,
+    				"diffuse": inputTriangles[i].material.diffuse,
+    				"specular": inputTriangles[i].material.specular,
+    				"n": inputTriangles[i].material.n,
+    				"alpha": inputTriangles[i].material.alpha,
+    				"texture": inputTriangles[i].material.texture,	
+    			},
+    			"triangles": [0,1,2],
+    			"vertices": [
+    				inputTriangles[i].vertices[inputTriangles[i].triangles[j][0]],
+    				inputTriangles[i].vertices[inputTriangles[i].triangles[j][1]],
+    				inputTriangles[i].vertices[inputTriangles[i].triangles[j][2]]
+    			],
+    			"uvs": [
+    				inputTriangles[i].uvs[inputTriangles[i].triangles[j][0]],
+    				inputTriangles[i].uvs[inputTriangles[i].triangles[j][1]],
+    				inputTriangles[i].uvs[inputTriangles[i].triangles[j][2]]
+    			],
+    			"normals": [
+    				inputTriangles[i].normals[inputTriangles[i].triangles[j][0]],
+    				inputTriangles[i].normals[inputTriangles[i].triangles[j][1]],
+    				inputTriangles[i].normals[inputTriangles[i].triangles[j][2]]
+    			],
+    		});
+    	}
+    }
+    inputTriangles = triArray;
 }
 
 
@@ -357,8 +188,8 @@ function loadModels() {
     
     
     inputTriangles = getJSONFile(INPUT_TRIANGLES_URL,"triangles"); // read in the triangle data
+    createTriangleArray();
     inputTriangles.sort(compareFunction);
-    console.log(inputTriangles);
 
     try {
         if (inputTriangles == String.null)
@@ -417,10 +248,8 @@ function loadModels() {
                 // set up the triangle index array, adjusting indices across sets
                 inputTriangles[whichSet].glTriangles = []; // flat index list for webgl
                 triSetSizes[whichSet] = inputTriangles[whichSet].triangles.length; // number of tris in this set
-                for (whichSetTri=0; whichSetTri<triSetSizes[whichSet]; whichSetTri++) {
-                    triToAdd = inputTriangles[whichSet].triangles[whichSetTri]; // get tri to add
-                    inputTriangles[whichSet].glTriangles.push(triToAdd[0],triToAdd[1],triToAdd[2]); // put indices in set list
-                } // end for triangles in set
+                triToAdd = inputTriangles[whichSet].triangles; // get tri to add
+                inputTriangles[whichSet].glTriangles.push(triToAdd[0],triToAdd[1],triToAdd[2]); // put indices in set list
 
                 // send the triangle indices to webGL
                 triangleBuffers.push(gl.createBuffer()); // init empty triangle index buffer
@@ -598,33 +427,6 @@ function setupShaders() {
 // render the loaded model
 function renderModels() {
     
-    // construct the model transform matrix, based on model state
-    function makeModelTransform(currModel) {
-        var zAxis = vec3.create(), sumRotation = mat4.create(), temp = mat4.create(), negCtr = vec3.create();
-
-        // move the model to the origin
-        mat4.fromTranslation(mMatrix,vec3.negate(negCtr,currModel.center)); 
-        
-        // scale for highlighting if needed
-        if (currModel.on)
-            mat4.multiply(mMatrix,mat4.fromScaling(temp,vec3.fromValues(1.2,1.2,1.2)),mMatrix); // S(1.2) * T(-ctr)
-        
-        // rotate the model to current interactive orientation
-        vec3.normalize(zAxis,vec3.cross(zAxis,currModel.xAxis,currModel.yAxis)); // get the new model z axis
-        mat4.set(sumRotation, // get the composite rotation
-            currModel.xAxis[0], currModel.yAxis[0], zAxis[0], 0,
-            currModel.xAxis[1], currModel.yAxis[1], zAxis[1], 0,
-            currModel.xAxis[2], currModel.yAxis[2], zAxis[2], 0,
-            0, 0,  0, 1);
-        mat4.multiply(mMatrix,sumRotation,mMatrix); // R(ax) * S(1.2) * T(-ctr)
-        
-        // translate back to model center
-        mat4.multiply(mMatrix,mat4.fromTranslation(temp,currModel.center),mMatrix); // T(ctr) * R(ax) * S(1.2) * T(-ctr)
-
-        // translate model to current interactive orientation
-        mat4.multiply(mMatrix,mat4.fromTranslation(temp,currModel.translation),mMatrix); // T(pos)*T(ctr)*R(ax)*S(1.2)*T(-ctr)
-        
-    } // end make model transform
     
     // var hMatrix = mat4.create(); // handedness matrix
     var pMatrix = mat4.create(); // projection matrix
@@ -652,7 +454,6 @@ function renderModels() {
         currSet = inputTriangles[whichTriSet];
         
         // make model transform, add to view project
-        makeModelTransform(currSet);
         //console.log(currSet.translation);
         mat4.multiply(pvmMatrix,pvMatrix,mMatrix); // project * view * model
         gl.uniformMatrix4fv(mMatrixULoc, false, mMatrix); // pass in the m matrix
@@ -685,7 +486,7 @@ function renderModels() {
 //        }
         gl.bindTexture(gl.TEXTURE_2D, textureArray[whichTriSet]);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffers[whichTriSet]); // activate
-        gl.drawElements(gl.TRIANGLES,3*triSetSizes[whichTriSet],gl.UNSIGNED_SHORT,0); // render
+        gl.drawElements(gl.TRIANGLES,3,gl.UNSIGNED_SHORT,0); // render
         
     } // end for each triangle set
 } // end render model
