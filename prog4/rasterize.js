@@ -19,12 +19,7 @@ var n = 11;
 var gl = null; // the all powerful gl object. It's all here folks!
 var gameObjects = []; // the triangle data as loaded from input files
 var numTriangleSets = 0; // how many triangle sets in input scene
-var inputEllipsoids = []; // the ellipsoid data as loaded from input files
-var numEllipsoids = 0; // how many ellipsoids in the input scene
-var vertexBuffers = []; // this contains vertex coordinate lists by set, in triples
-var normalBuffers = []; // this contains normal component lists by set, in triples
-var triSetSizes = []; // this contains the size of each triangle set
-var triangleBuffers = []; // lists of indices into vertexBuffers by set, in triples
+var snakeArray = [];
 var viewDelta = 0; // how much to displace view with each key press
 
 /* shader parameter locations */
@@ -48,6 +43,7 @@ var leftNormal = [-1, 0, 0];
 var rightNormal = [1, 0, 0];
 var topNormal = [0, 1, 0];
 var bottomNormal = [0, -1, 0];
+var dir = "down";
 
 // ASSIGNMENT HELPER FUNCTIONS
 
@@ -234,14 +230,20 @@ class Cube {
             topNormal[0], topNormal[1], topNormal[2], 
             topNormal[0], topNormal[1], topNormal[2], 
         ]
-		this.indices = [
-		    0,  1,  2,      0,  2,  3,    // front
-		    4,  5,  6,      4,  6,  7,    // back
-		    8,  9,  10,     8,  10, 11,   // top
-		    12, 13, 14,     12, 14, 15,   // bottom
-		    16, 17, 18,     16, 18, 19,   // right
-		    20, 21, 22,     20, 22, 23,   // left
-		  ];
+        this.indices = [
+            0, 1, 2, 
+            2, 3, 1,
+            4, 5, 6,
+            6, 7, 5,
+            8, 9, 10, 
+            10, 11, 9,
+            12, 13, 14, 
+            14, 15, 13,
+            16, 17, 18, 
+            18, 19, 17,
+            20, 21, 22,
+            22, 23, 21,
+        ];
 		const faceColors = [
 		    [1.0,  1.0,  1.0,  1.0],    // Front face: white
 		    [1.0,  0.0,  0.0,  1.0],    // Back face: red
@@ -274,6 +276,48 @@ class Cube {
 
 	}
 	
+	move(x, y) {
+		this.x = x;
+		this.y = y;
+		var l = this.x * .02;
+        var r = (this.x+1) * .02;
+        var t = this.y * .02;
+        var b = (this.y+1) * .02;
+        this.positions = [
+            l, t, zC, 
+            r, t, zC,  
+            l, b, zC,  
+            r, b, zC, 
+
+            r, t, zC, 
+            r, b, zC, 
+            r, t, zF, 
+            r, b, zF, 
+
+            l, t, zF, 
+            r, t, zF, 
+            l, b, zF, 
+            r, b, zF, 
+
+            l, t, zC, 
+            l, b, zC, 
+            l, t, zF, 
+            l, b, zF,
+
+            l, b, zC, 
+            r, b, zC,
+            l, b, zF, 
+            r, b, zF, 
+
+            l, t, zC,
+            r, t, zC, 
+            l, t, zF, 
+            r, t, zF, 
+        ];
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.positions), gl.STATIC_DRAW);
+	}
+	
 }
 
 // read models in, load them into webgl buffers
@@ -284,6 +328,9 @@ function loadModels() {
                 gameObjects.push(new Cube(i, j, "wall"));
             }
         }
+    }
+	for (var i = 23; i <= 25; i++) {
+        snakeArray.push(new Cube(25, i, "snake"));
     }
     
 } // end load models
@@ -483,6 +530,33 @@ function renderModels() {
     var currSet; // the tri set and its material properties
     for (var whichTriSet=0; whichTriSet<gameObjects.length; whichTriSet++) {
         currSet = gameObjects[whichTriSet];
+        //debugger;
+        
+        // make model transform, add to view project
+        //makeModelTransform(currSet);
+        mat4.multiply(pvmMatrix,pvMatrix,mMatrix); // project * view * model
+        gl.uniformMatrix4fv(mMatrixULoc, false, mMatrix); // pass in the m matrix
+        gl.uniformMatrix4fv(pvmMatrixULoc, false, pvmMatrix); // pass in the hpvm matrix
+        
+        // reflectivity: feed to the fragment shader
+        gl.uniform3fv(ambientULoc,ambient); // pass in the ambient reflectivity
+        gl.uniform3fv(diffuseULoc,diffuse); // pass in the diffuse reflectivity
+        gl.uniform3fv(specularULoc, specular); // pass in the specular reflectivity
+        gl.uniform1f(shininessULoc,n); // pass in the specular exponent
+        gl.uniform1i(Blinn_PhongULoc, Blinn_Phong);
+        // vertex buffer: activate and feed into vertex shader
+        gl.bindBuffer(gl.ARRAY_BUFFER,currSet.positionBuffer); // activate
+        gl.vertexAttribPointer(vPosAttribLoc,3,gl.FLOAT,false,0,0); // feed
+        gl.bindBuffer(gl.ARRAY_BUFFER,currSet.normalBuffer); // activate
+        gl.vertexAttribPointer(vNormAttribLoc,3,gl.FLOAT,false,0,0); // feed
+
+        // triangle buffer: activate and render
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,currSet.indexBuffer); // activate
+        gl.drawElements(gl.TRIANGLES,3*12,gl.UNSIGNED_SHORT,0); // render
+        
+    } // end for each triangle set
+    for (var whichTriSet=0; whichTriSet<snakeArray.length; whichTriSet++) {
+        currSet = snakeArray[whichTriSet];
         debugger;
         
         // make model transform, add to view project
