@@ -2,8 +2,8 @@
 
 /* assignment specific globals */
 const INPUT_TRIANGLES_URL = "https://ncsucgclass.github.io/prog4/triangles.json"; // triangles file loc
-var defaultEye = vec3.fromValues(0.5,0.5,-0.21); // default eye position in world space
-var defaultCenter = vec3.fromValues(0.5,0.5,0.5); // default view direction in world space
+var defaultEye = vec3.fromValues(1,1,-.8); // default eye position in world space
+var defaultCenter = vec3.fromValues(1,1,.9); // default view direction in world space
 var defaultUp = vec3.fromValues(0,1,0); // default view up vector
 var lightAmbient = vec3.fromValues(1,1,1); // default light ambient emission
 var lightDiffuse = vec3.fromValues(1,1,1); // default light diffuse emission
@@ -37,13 +37,8 @@ var Center = vec3.clone(defaultCenter); // view direction in world space
 var Up = vec3.clone(defaultUp); // view up vector in world space
 var zC = .3;
 var zF = .29;
-var closeNormal = [0, 0, 1];
-var farNormal = [0, 0, -1];
-var leftNormal = [-1, 0, 0];
-var rightNormal = [1, 0, 0];
-var topNormal = [0, 1, 0];
-var bottomNormal = [0, -1, 0];
-var dir = "down";
+var dir = 0;
+var tic = 0;
 
 // ASSIGNMENT HELPER FUNCTIONS
 
@@ -63,65 +58,26 @@ function handleKeyDown(event) {
     switch (event.code) {
         
         case "ArrowRight": // select next triangle set
-            
+        	if (dir != 1) {
+        		dir = 3;
+        	}
             break;
         case "ArrowLeft": // select previous triangle set
-            
+        	if (dir != 3) {
+        		dir = 1;
+        	};
             break;
-        
-            
-        // view change
-        case "KeyA": // translate view left, rotate left with shift
-            Center = vec3.add(Center,Center,vec3.scale(temp,viewRight,viewDelta));
-            if (!event.getModifierState("Shift"))
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,viewRight,viewDelta));
+        case "ArrowUp": // select next triangle set
+        	if (dir != 0) {
+        		dir = 2;
+        	}
             break;
-        case "KeyD": // translate view right, rotate right with shift
-            Center = vec3.add(Center,Center,vec3.scale(temp,viewRight,-viewDelta));
-            if (!event.getModifierState("Shift"))
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,viewRight,-viewDelta));
-            break;
-        case "KeyS": // translate view backward, rotate up with shift
-            if (event.getModifierState("Shift")) {
-                Center = vec3.add(Center,Center,vec3.scale(temp,Up,viewDelta));
-                Up = vec3.cross(Up,viewRight,vec3.subtract(lookAt,Center,Eye)); /* global side effect */
-            } else {
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,lookAt,-viewDelta));
-                Center = vec3.add(Center,Center,vec3.scale(temp,lookAt,-viewDelta));
-            } // end if shift not pressed
-            break;
-        case "KeyW": // translate view forward, rotate down with shift
-            if (event.getModifierState("Shift")) {
-                Center = vec3.add(Center,Center,vec3.scale(temp,Up,-viewDelta));
-                Up = vec3.cross(Up,viewRight,vec3.subtract(lookAt,Center,Eye)); /* global side effect */
-            } else {
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,lookAt,viewDelta));
-                Center = vec3.add(Center,Center,vec3.scale(temp,lookAt,viewDelta));
-            } // end if shift not pressed
-            break;
-        case "KeyQ": // translate view up, rotate counterclockwise with shift
-            if (event.getModifierState("Shift"))
-                Up = vec3.normalize(Up,vec3.add(Up,Up,vec3.scale(temp,viewRight,-viewDelta)));
-            else {
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,Up,viewDelta));
-                Center = vec3.add(Center,Center,vec3.scale(temp,Up,viewDelta));
-            } // end if shift not pressed
-            break;
-        case "KeyE": // translate view down, rotate clockwise with shift
-            if (event.getModifierState("Shift"))
-                Up = vec3.normalize(Up,vec3.add(Up,Up,vec3.scale(temp,viewRight,viewDelta)));
-            else {
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,Up,-viewDelta));
-                Center = vec3.add(Center,Center,vec3.scale(temp,Up,-viewDelta));
-            } // end if shift not pressed
-            break;
-        case "Escape": // reset view to default
-            Eye = vec3.copy(Eye,defaultEye);
-            Center = vec3.copy(Center,defaultCenter);
-            Up = vec3.copy(Up,defaultUp);
+        case "ArrowDown": // select previous triangle set
+        	if (dir != 2) {
+        		dir = 0;
+        	}
             break;
             
-        // model transformation
         
     } // end switch
 } // end handleKeyDown
@@ -164,174 +120,19 @@ function setupWebGL() {
 } // end setupWebGL
 
 
-class Cube {
-	constructor(x, y, type) {
-		this.x = x;
-		this.y = y;
-		this.type = type;
-		var l = this.x * .02;
-        var r = (this.x+1) * .02;
-        var t = this.y * .02;
-        var b = (this.y+1) * .02;
-        this.positions = [
-            l, t, zC, 
-            r, t, zC,  
-            l, b, zC,  
-            r, b, zC, 
-
-            r, t, zC, 
-            r, b, zC, 
-            r, t, zF, 
-            r, b, zF, 
-
-            l, t, zF, 
-            r, t, zF, 
-            l, b, zF, 
-            r, b, zF, 
-
-            l, t, zC, 
-            l, b, zC, 
-            l, t, zF, 
-            l, b, zF,
-
-            l, b, zC, 
-            r, b, zC,
-            l, b, zF, 
-            r, b, zF, 
-
-            l, t, zC,
-            r, t, zC, 
-            l, t, zF, 
-            r, t, zF, 
-        ];
-        this.normals = [
-            closeNormal[0], closeNormal[1], closeNormal[2], 
-            closeNormal[0], closeNormal[1], closeNormal[2], 
-            closeNormal[0], closeNormal[1], closeNormal[2],
-            closeNormal[0], closeNormal[1], closeNormal[2],
-            rightNormal[0], rightNormal[1], rightNormal[2],
-            rightNormal[0], rightNormal[1], rightNormal[2],
-            rightNormal[0], rightNormal[1], rightNormal[2],
-            rightNormal[0], rightNormal[1], rightNormal[2],
-            farNormal[0], farNormal[1], farNormal[2], 
-            farNormal[0], farNormal[1], farNormal[2], 
-            farNormal[0], farNormal[1], farNormal[2], 
-            farNormal[0], farNormal[1], farNormal[2], 
-            leftNormal[0], leftNormal[1], leftNormal[2], 
-            leftNormal[0], leftNormal[1], leftNormal[2], 
-            leftNormal[0], leftNormal[1], leftNormal[2], 
-            leftNormal[0], leftNormal[1], leftNormal[2], 
-            bottomNormal[0], bottomNormal[1], bottomNormal[2], 
-            bottomNormal[0], bottomNormal[1], bottomNormal[2], 
-            bottomNormal[0], bottomNormal[1], bottomNormal[2], 
-            bottomNormal[0], bottomNormal[1], bottomNormal[2], 
-            topNormal[0], topNormal[1], topNormal[2], 
-            topNormal[0], topNormal[1], topNormal[2], 
-            topNormal[0], topNormal[1], topNormal[2], 
-            topNormal[0], topNormal[1], topNormal[2], 
-        ]
-        this.indices = [
-            0, 1, 2, 
-            2, 3, 1,
-            4, 5, 6,
-            6, 7, 5,
-            8, 9, 10, 
-            10, 11, 9,
-            12, 13, 14, 
-            14, 15, 13,
-            16, 17, 18, 
-            18, 19, 17,
-            20, 21, 22,
-            22, 23, 21,
-        ];
-		const faceColors = [
-		    [1.0,  1.0,  1.0,  1.0],    // Front face: white
-		    [1.0,  0.0,  0.0,  1.0],    // Back face: red
-		    [0.0,  1.0,  0.0,  1.0],    // Top face: green
-		    [0.0,  0.0,  1.0,  1.0],    // Bottom face: blue
-		    [1.0,  1.0,  0.0,  1.0],    // Right face: yellow
-		    [1.0,  0.0,  1.0,  1.0],    // Left face: purple
-		  ];
-		var colors = [];
-
-		for (var j = 0; j < faceColors.length; ++j) {
-			const c = faceColors[j];
-
-		    // Repeat each color four times for the four vertices of the face
-			colors = colors.concat(c, c, c, c);
-		}
-
-		this.colorBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-		this.positionBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.positions), gl.STATIC_DRAW);
-		this.normalBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.normals), gl.STATIC_DRAW);
-		this.indexBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.indices), gl.STATIC_DRAW);
-
-	}
-	
-	move(x, y) {
-		this.x = x;
-		this.y = y;
-		var l = this.x * .02;
-        var r = (this.x+1) * .02;
-        var t = this.y * .02;
-        var b = (this.y+1) * .02;
-        this.positions = [
-            l, t, zC, 
-            r, t, zC,  
-            l, b, zC,  
-            r, b, zC, 
-
-            r, t, zC, 
-            r, b, zC, 
-            r, t, zF, 
-            r, b, zF, 
-
-            l, t, zF, 
-            r, t, zF, 
-            l, b, zF, 
-            r, b, zF, 
-
-            l, t, zC, 
-            l, b, zC, 
-            l, t, zF, 
-            l, b, zF,
-
-            l, b, zC, 
-            r, b, zC,
-            l, b, zF, 
-            r, b, zF, 
-
-            l, t, zC,
-            r, t, zC, 
-            l, t, zF, 
-            r, t, zF, 
-        ];
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.positions), gl.STATIC_DRAW);
-	}
-	
-}
-
 // read models in, load them into webgl buffers
 function loadModels() {
-	for (var i = 0; i < 50; i++) {
-        for (var j = 0; j < 50; j++) {
-            if (i == 0 || i == 49 || j == 0 || j == 49) {
+	for (var i = 0; i < 100; i++) {
+        for (var j = 0; j < 100; j++) {
+            if (i == 0 || i == 99 || j == 0 || j == 99) {
                 gameObjects.push(new Cube(i, j, "wall"));
             }
         }
     }
-	for (var i = 23; i <= 25; i++) {
-        snakeArray.push(new Cube(25, i, "snake"));
+	for (var i = 53; i <= 55; i++) {
+        snakeArray.push(new Cube(50, i, "snake"));
     }
+	dir = 0;
     
 } // end load models
 
@@ -516,7 +317,7 @@ function renderModels() {
     var pvmMatrix = mat4.create(); // hand * proj * view * model matrices
     
     window.requestAnimationFrame(renderModels); // set up frame render callback
-    
+    tic = tic + 1;
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear frame/depth buffers
     
     // set up projection and view
@@ -557,7 +358,6 @@ function renderModels() {
     } // end for each triangle set
     for (var whichTriSet=0; whichTriSet<snakeArray.length; whichTriSet++) {
         currSet = snakeArray[whichTriSet];
-        debugger;
         
         // make model transform, add to view project
         //makeModelTransform(currSet);
@@ -581,7 +381,35 @@ function renderModels() {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,currSet.indexBuffer); // activate
         gl.drawElements(gl.TRIANGLES,3*12,gl.UNSIGNED_SHORT,0); // render
         
-    } // end for each triangle set
+    }
+    debugger;
+    if (tic == 10) {
+    	tic = 0;
+	    var oldX = snakeArray[0].x;
+	    var oldY = snakeArray[0].y;
+	    var newX = snakeArray[0].x;
+	    var newY = snakeArray[0].y;
+	    if (dir == 0) {
+	    	newY = newY - 1;
+	    }
+	    else if (dir == 2) {
+	    	newY = newY + 1;
+	    }
+	    else if (dir == 1) {
+	    	newX = newX + 1;
+	    }
+	    else if (dir == 3) {
+	    	newX = newX - 1;
+	    }
+	    snakeArray[0].move(newX, newY);
+	    for(var i = 1; i < snakeArray.length; i++) {
+	    	var curX = snakeArray[i].x;
+	    	var curY = snakeArray[i].y;
+	    	snakeArray[i].move(oldX, oldY);
+	    	oldX = curX;
+	    	oldY = curY;
+	    }
+    }
 } // end render model
 
 
