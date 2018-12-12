@@ -136,6 +136,14 @@ function loadModels() {
     
 } // end load models
 
+function loadSnake() {
+	snakeArray = [];
+	for (var i = 53; i <= 55; i++) {
+        snakeArray.push(new Cube(50, i, "snake"));
+    }
+	dir = 0;
+}
+
 // setup the webGL shaders
 function setupShaders() {
     
@@ -382,7 +390,7 @@ function renderModels() {
         gl.drawElements(gl.TRIANGLES,3*12,gl.UNSIGNED_SHORT,0); // render
         
     }
-    debugger;
+    //debugger;
     if (tic == 10) {
     	tic = 0;
 	    var oldX = snakeArray[0].x;
@@ -409,6 +417,15 @@ function renderModels() {
 	    	oldX = curX;
 	    	oldY = curY;
 	    }
+	    
+	    if(snakeArray[0].x >= 100 || snakeArray[0].x <= 0 ) {
+	    	loadSnake();
+	    }
+	    if(snakeArray[0].y >= 100 || snakeArray[0].y <= 0 ) {
+	    	loadSnake();
+	    }
+	    
+	    
     }
 } // end render model
 
