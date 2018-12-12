@@ -1,25 +1,31 @@
 /* GLOBAL CONSTANTS AND VARIABLES */
 
 /* assignment specific globals */
-const INPUT_TRIANGLES_URL = "https://ncsucgclass.github.io/prog4/triangles.json"; // triangles file loc
 var defaultEye = vec3.fromValues(1,1,-.8); // default eye position in world space
 var defaultCenter = vec3.fromValues(1,1,.9); // default view direction in world space
 var defaultUp = vec3.fromValues(0,1,0); // default view up vector
 var lightAmbient = vec3.fromValues(1,1,1); // default light ambient emission
 var lightDiffuse = vec3.fromValues(1,1,1); // default light diffuse emission
 var lightSpecular = vec3.fromValues(1,1,1); // default light specular emission
-var lightPosition = vec3.fromValues(-1,3,-0.5); // default light position
+var lightPosition = vec3.fromValues(1,0,-0.5); // default light position
 var rotateTheta = Math.PI/50; // how much to rotate models by with each key press
 var Blinn_Phong = true;
-var ambient = vec3.fromValues(.5,.5,.5);
-var diffuse = vec3.fromValues(.6,.6,.6);
+var ambient = vec3.fromValues(0.5,0.5,0.5);
+var diffuse = vec3.fromValues(0.4,0.4,0.4);
 var specular = vec3.fromValues(.3,.3,.3);
+var ambientS = vec3.fromValues(0,0,0);
+var diffuseS = vec3.fromValues(0.6,0.8,0.4);
+var specularS = vec3.fromValues(.1,.1,.1);
+var ambientF = vec3.fromValues(0.1,0.1,0.1);
+var diffuseF = vec3.fromValues(0.4,0.4,0.9);
+var specularF = vec3.fromValues(.1,.1,.1);
 var n = 11;
 /* webgl and geometry data */
 var gl = null; // the all powerful gl object. It's all here folks!
-var gameObjects = []; // the triangle data as loaded from input files
+var walls = []; // the triangle data as loaded from input files
 var numTriangleSets = 0; // how many triangle sets in input scene
 var snakeArray = [];
+var foodArray = [];
 var viewDelta = 0; // how much to displace view with each key press
 
 /* shader parameter locations */
@@ -39,22 +45,13 @@ var zC = .3;
 var zF = .29;
 var dir = 0;
 var tic = 0;
+var ticfood = 0;
 
-// ASSIGNMENT HELPER FUNCTIONS
 
 
 // does stuff when keys are pressed
 function handleKeyDown(event) {
     
-    const dirEnum = {NEGATIVE: -1, POSITIVE: 1}; // enumerated rotation direction
-    
-    
-    // set up needed view params
-    var lookAt = vec3.create(), viewRight = vec3.create(), temp = vec3.create(); // lookat, right & temp vectors
-    lookAt = vec3.normalize(lookAt,vec3.subtract(temp,Center,Eye)); // get lookat vector
-    viewRight = vec3.normalize(viewRight,vec3.cross(temp,lookAt,Up)); // get view right vector
-    
-
     switch (event.code) {
         
         case "ArrowRight": // select next triangle set
@@ -119,30 +116,6 @@ function setupWebGL() {
  
 } // end setupWebGL
 
-
-// read models in, load them into webgl buffers
-function loadModels() {
-	for (var i = 0; i < 100; i++) {
-        for (var j = 0; j < 100; j++) {
-            if (i == 0 || i == 99 || j == 0 || j == 99) {
-                gameObjects.push(new Cube(i, j, "wall"));
-            }
-        }
-    }
-	for (var i = 53; i <= 55; i++) {
-        snakeArray.push(new Cube(50, i, "snake"));
-    }
-	dir = 0;
-    
-} // end load models
-
-function loadSnake() {
-	snakeArray = [];
-	for (var i = 53; i <= 55; i++) {
-        snakeArray.push(new Cube(50, i, "snake"));
-    }
-	dir = 0;
-}
 
 // setup the webGL shaders
 function setupShaders() {
@@ -326,6 +299,7 @@ function renderModels() {
     
     window.requestAnimationFrame(renderModels); // set up frame render callback
     tic = tic + 1;
+    ticfood = ticfood + 1;
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear frame/depth buffers
     
     // set up projection and view
@@ -337,8 +311,8 @@ function renderModels() {
 
     // render each triangle set
     var currSet; // the tri set and its material properties
-    for (var whichTriSet=0; whichTriSet<gameObjects.length; whichTriSet++) {
-        currSet = gameObjects[whichTriSet];
+    for (var whichTriSet=0; whichTriSet<walls.length; whichTriSet++) {
+        currSet = walls[whichTriSet];
         //debugger;
         
         // make model transform, add to view project
@@ -374,9 +348,35 @@ function renderModels() {
         gl.uniformMatrix4fv(pvmMatrixULoc, false, pvmMatrix); // pass in the hpvm matrix
         
         // reflectivity: feed to the fragment shader
-        gl.uniform3fv(ambientULoc,ambient); // pass in the ambient reflectivity
-        gl.uniform3fv(diffuseULoc,diffuse); // pass in the diffuse reflectivity
-        gl.uniform3fv(specularULoc, specular); // pass in the specular reflectivity
+        gl.uniform3fv(ambientULoc,ambientS); // pass in the ambient reflectivity
+        gl.uniform3fv(diffuseULoc,diffuseS); // pass in the diffuse reflectivity
+        gl.uniform3fv(specularULoc, specularS); // pass in the specular reflectivity
+        gl.uniform1f(shininessULoc,n); // pass in the specular exponent
+        gl.uniform1i(Blinn_PhongULoc, Blinn_Phong);
+        // vertex buffer: activate and feed into vertex shader
+        gl.bindBuffer(gl.ARRAY_BUFFER,currSet.positionBuffer); // activate
+        gl.vertexAttribPointer(vPosAttribLoc,3,gl.FLOAT,false,0,0); // feed
+        gl.bindBuffer(gl.ARRAY_BUFFER,currSet.normalBuffer); // activate
+        gl.vertexAttribPointer(vNormAttribLoc,3,gl.FLOAT,false,0,0); // feed
+
+        // triangle buffer: activate and render
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,currSet.indexBuffer); // activate
+        gl.drawElements(gl.TRIANGLES,3*12,gl.UNSIGNED_SHORT,0); // render
+        
+    }
+    for (var whichTriSet=0; whichTriSet<foodArray.length; whichTriSet++) {
+        currSet = foodArray[whichTriSet];
+        
+        // make model transform, add to view project
+        //makeModelTransform(currSet);
+        mat4.multiply(pvmMatrix,pvMatrix,mMatrix); // project * view * model
+        gl.uniformMatrix4fv(mMatrixULoc, false, mMatrix); // pass in the m matrix
+        gl.uniformMatrix4fv(pvmMatrixULoc, false, pvmMatrix); // pass in the hpvm matrix
+        
+        // reflectivity: feed to the fragment shader
+        gl.uniform3fv(ambientULoc,ambientF); // pass in the ambient reflectivity
+        gl.uniform3fv(diffuseULoc,diffuseF); // pass in the diffuse reflectivity
+        gl.uniform3fv(specularULoc, specularF); // pass in the specular reflectivity
         gl.uniform1f(shininessULoc,n); // pass in the specular exponent
         gl.uniform1i(Blinn_PhongULoc, Blinn_Phong);
         // vertex buffer: activate and feed into vertex shader
@@ -391,7 +391,7 @@ function renderModels() {
         
     }
     //debugger;
-    if (tic == 10) {
+    if (tic == 5) {
     	tic = 0;
 	    var oldX = snakeArray[0].x;
 	    var oldY = snakeArray[0].y;
@@ -424,11 +424,62 @@ function renderModels() {
 	    if(snakeArray[0].y >= 100 || snakeArray[0].y <= 0 ) {
 	    	loadSnake();
 	    }
+	    for(var i = 0; i < foodArray.length; i++) {
+	    	var foX = foodArray[i].x;
+	    	var foY = foodArray[i].y;
+	    	if (snakeArray[0].x == foX && snakeArray[0].y == foY) {
+	    		snakeArray.push(new Cube(oldX, oldY, "snake"));
+	    		foodArray.splice(i, 1);
+	    	}
+	    	
+	    }
+	    for(var i = 1; i < snakeArray.length; i++) {
+	    	var soX = snakeArray[i].x;
+	    	var soY = snakeArray[i].y;
+	    	if (snakeArray[0].x == soX && snakeArray[0].y == soY) {
+	    		loadSnake();
+	    	}
+	    }
 	    
 	    
     }
+    if (ticfood == 240) {
+    	ticfood = 0;
+    	loadFood();
+    }
 } // end render model
 
+function loadModels() {
+	for (var i = 0; i < 100; i++) {
+        for (var j = 0; j < 100; j++) {
+            if (i == 0 || i == 99 || j == 0 || j == 99) {
+                walls.push(new Cube(i, j, "wall"));
+            }
+        }
+    }
+	for (var i = 53; i <= 55; i++) {
+        snakeArray.push(new Cube(50, i, "snake"));
+    }
+	dir = 0;
+    
+} // end load models
+
+function loadSnake() {
+	snakeArray = [];
+	for (var i = 53; i <= 55; i++) {
+        snakeArray.push(new Cube(50, i, "snake"));
+    }
+	dir = 0;
+}
+
+function loadFood() {
+	var max = 99;
+	var min = 1;
+	var randomX = Math.floor(Math.random() * (max - min)) + min;
+	var randomY = Math.floor(Math.random() * (max - min)) + min;
+	foodArray.push(new Cube(randomX, randomY, "food"));
+	
+}
 
 /* MAIN -- HERE is where execution begins after window load */
 
