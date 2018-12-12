@@ -572,11 +572,11 @@ function loadModels() {
             }
         }
     }
-	for (var i = 53; i <= 55; i++) {
-        snakeArray.push(new Cube(50, i));
+	for (var i = 83; i <= 85; i++) {
+        snakeArray.push(new Cube(80, i));
     }
 	for (var i = 51; i <= 55; i++) {
-        npsnakeArray.push(new Cube(i, 70));
+        npsnakeArray.push(new Cube(i, 50));
     }
 	dir = 0;
 	dirnp = 3;
@@ -588,8 +588,8 @@ function loadModels() {
 
 function loadSnake() {
 	snakeArray = [];
-	for (var i = 53; i <= 55; i++) {
-        snakeArray.push(new Cube(50, i));
+	for (var i = 83; i <= 85; i++) {
+        snakeArray.push(new Cube(80, i));
     }
 	dir = 0;
 }
@@ -597,7 +597,7 @@ function loadSnake() {
 function loadNpSnake() {
 	npsnakeArray = [];
 	for (var i = 51; i <= 55; i++) {
-        npsnakeArray.push(new Cube(i, 70));
+        npsnakeArray.push(new Cube(i, 50));
     }
 	dirnp = 3;
 	dirTic = 0;

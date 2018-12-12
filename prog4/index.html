@@ -14,5 +14,11 @@
   <body onload="main();">
     <canvas id="myImageCanvas" style="background-color:black" width="640" height="512"></canvas>
     <canvas id="myWebGLCanvas" width="640" height="512"></canvas>
+    <!-- Music: "Royalty Free Music from Bensound" -->
+  	<audio id="myaudio" autoplay loop><source src="bensound-energy.mp3" type="audio/mpeg"></audio>
   </body>
+  <script>
+  	var audio = document.getElementById("myaudio");
+  	audio.volume = 0.2;
+  </script>
 </html>
