@@ -440,7 +440,7 @@ function renderModels() {
 		
 	}
     //debugger;
-    if (tic == 5) {
+    if (tic == 7) {
     	//tic = 0;
 	    var oldX = snakeArray[0].x;
 	    var oldY = snakeArray[0].y;
@@ -493,7 +493,7 @@ function renderModels() {
 	    
 	    
     }
-    if (tic == 5) {
+    if (tic == 7) {
     	tic = 0;
 	    var oldX = npsnakeArray[0].x;
 	    var oldY = npsnakeArray[0].y;
