@@ -1,8 +1,7 @@
 class Cube {
-	constructor(x, y, type) {
+	constructor(x, y) {
 		this.x = x;
 		this.y = y;
-		this.type = type;
 		var zC = .3;
 		var zF = .29;
 		var tN = [0, 1, 0];

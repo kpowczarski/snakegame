@@ -19,6 +19,9 @@ var specularS = vec3.fromValues(.1,.1,.1);
 var ambientF = vec3.fromValues(0.1,0.1,0.1);
 var diffuseF = vec3.fromValues(0.4,0.4,0.9);
 var specularF = vec3.fromValues(.1,.1,.1);
+var ambientSn = vec3.fromValues(0,0,0);
+var diffuseSn = vec3.fromValues(0.8,0.5,0.1);
+var specularSn = vec3.fromValues(.1,.1,.1);
 var n = 11;
 /* webgl and geometry data */
 var gl = null; // the all powerful gl object. It's all here folks!
@@ -26,6 +29,7 @@ var walls = []; // the triangle data as loaded from input files
 var numTriangleSets = 0; // how many triangle sets in input scene
 var snakeArray = [];
 var foodArray = [];
+var npsnakeArray = [];
 var viewDelta = 0; // how much to displace view with each key press
 
 /* shader parameter locations */
@@ -44,8 +48,11 @@ var Up = vec3.clone(defaultUp); // view up vector in world space
 var zC = .3;
 var zF = .29;
 var dir = 0;
+var dirnp = 3;
 var tic = 0;
 var ticfood = 0;
+var dirTic = 0;
+var randomDirTic = 0;
 
 
 
@@ -300,6 +307,7 @@ function renderModels() {
     window.requestAnimationFrame(renderModels); // set up frame render callback
     tic = tic + 1;
     ticfood = ticfood + 1;
+    dirTic = dirTic + 1;
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear frame/depth buffers
     
     // set up projection and view
@@ -390,9 +398,50 @@ function renderModels() {
         gl.drawElements(gl.TRIANGLES,3*12,gl.UNSIGNED_SHORT,0); // render
         
     }
+    for (var whichTriSet=0; whichTriSet<npsnakeArray.length; whichTriSet++) {
+        currSet = npsnakeArray[whichTriSet];
+        
+        // make model transform, add to view project
+        //makeModelTransform(currSet);
+        mat4.multiply(pvmMatrix,pvMatrix,mMatrix); // project * view * model
+        gl.uniformMatrix4fv(mMatrixULoc, false, mMatrix); // pass in the m matrix
+        gl.uniformMatrix4fv(pvmMatrixULoc, false, pvmMatrix); // pass in the hpvm matrix
+        
+        // reflectivity: feed to the fragment shader
+        gl.uniform3fv(ambientULoc,ambientSn); // pass in the ambient reflectivity
+        gl.uniform3fv(diffuseULoc,diffuseSn); // pass in the diffuse reflectivity
+        gl.uniform3fv(specularULoc, specularSn); // pass in the specular reflectivity
+        gl.uniform1f(shininessULoc,n); // pass in the specular exponent
+        gl.uniform1i(Blinn_PhongULoc, Blinn_Phong);
+        // vertex buffer: activate and feed into vertex shader
+        gl.bindBuffer(gl.ARRAY_BUFFER,currSet.positionBuffer); // activate
+        gl.vertexAttribPointer(vPosAttribLoc,3,gl.FLOAT,false,0,0); // feed
+        gl.bindBuffer(gl.ARRAY_BUFFER,currSet.normalBuffer); // activate
+        gl.vertexAttribPointer(vNormAttribLoc,3,gl.FLOAT,false,0,0); // feed
+
+        // triangle buffer: activate and render
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,currSet.indexBuffer); // activate
+        gl.drawElements(gl.TRIANGLES,3*12,gl.UNSIGNED_SHORT,0); // render
+        
+    }
+	if (dirTic == randomDirTic) {
+		dirTic = 0;
+		var maxT = 90;
+		var minT = 10;
+		randomDirTic = Math.floor(Math.random() * (maxT - minT)) + minT;
+		var maxD = 3;
+		var minD = 0;
+		var temp = Math.floor(Math.random() * (maxD - minD)) + minD;
+		var minus = dirnp - 2;
+		var plus = dirnp + 2;
+		if (temp != minus && temp != plus) {
+			dirnp = temp;
+		}
+		
+	}
     //debugger;
     if (tic == 5) {
-    	tic = 0;
+    	//tic = 0;
 	    var oldX = snakeArray[0].x;
 	    var oldY = snakeArray[0].y;
 	    var newX = snakeArray[0].x;
@@ -417,18 +466,12 @@ function renderModels() {
 	    	oldX = curX;
 	    	oldY = curY;
 	    }
-	    
-	    if(snakeArray[0].x >= 100 || snakeArray[0].x <= 0 ) {
-	    	loadSnake();
-	    }
-	    if(snakeArray[0].y >= 100 || snakeArray[0].y <= 0 ) {
-	    	loadSnake();
-	    }
+
 	    for(var i = 0; i < foodArray.length; i++) {
 	    	var foX = foodArray[i].x;
 	    	var foY = foodArray[i].y;
 	    	if (snakeArray[0].x == foX && snakeArray[0].y == foY) {
-	    		snakeArray.push(new Cube(oldX, oldY, "snake"));
+	    		snakeArray.push(new Cube(oldX, oldY));
 	    		foodArray.splice(i, 1);
 	    	}
 	    	
@@ -440,6 +483,66 @@ function renderModels() {
 	    		loadSnake();
 	    	}
 	    }
+	    for(var i = 1; i < npsnakeArray.length; i++) {
+	    	var soX = npsnakeArray[i].x;
+	    	var soY = npsnakeArray[i].y;
+	    	if (snakeArray[0].x == soX && snakeArray[0].y == soY) {
+	    		loadSnake();
+	    	}
+	    }
+	    
+	    
+    }
+    if (tic == 5) {
+    	tic = 0;
+	    var oldX = npsnakeArray[0].x;
+	    var oldY = npsnakeArray[0].y;
+	    var newX = npsnakeArray[0].x;
+	    var newY = npsnakeArray[0].y;
+	    if (dirnp == 0) {
+	    	newY = newY - 1;
+	    }
+	    else if (dirnp == 2) {
+	    	newY = newY + 1;
+	    }
+	    else if (dirnp == 1) {
+	    	newX = newX + 1;
+	    }
+	    else if (dirnp == 3) {
+	    	newX = newX - 1;
+	    }
+	    npsnakeArray[0].move(newX, newY);
+	    for(var i = 1; i < npsnakeArray.length; i++) {
+	    	var curX = npsnakeArray[i].x;
+	    	var curY = npsnakeArray[i].y;
+	    	npsnakeArray[i].move(oldX, oldY);
+	    	oldX = curX;
+	    	oldY = curY;
+	    }
+
+	    for(var i = 0; i < foodArray.length; i++) {
+	    	var foX = foodArray[i].x;
+	    	var foY = foodArray[i].y;
+	    	if (npsnakeArray[0].x == foX && npsnakeArray[0].y == foY) {
+	    		npsnakeArray.push(new Cube(oldX, oldY));
+	    		foodArray.splice(i, 1);
+	    	}
+	    	
+	    }
+	    for(var i = 1; i < npsnakeArray.length; i++) {
+	    	var soX = npsnakeArray[i].x;
+	    	var soY = npsnakeArray[i].y;
+	    	if (npsnakeArray[0].x == soX && npsnakeArray[0].y == soY) {
+	    		loadNpSnake();
+	    	}
+	    }
+	    for(var i = 1; i < snakeArray.length; i++) {
+	    	var soX = snakeArray[i].x;
+	    	var soY = snakeArray[i].y;
+	    	if (npsnakeArray[0].x == soX && npsnakeArray[0].y == soY) {
+	    		loadNpSnake();
+	    	}
+	    }
 	    
 	    
     }
@@ -447,29 +550,60 @@ function renderModels() {
     	ticfood = 0;
     	loadFood();
     }
+    if(snakeArray[0].x >= 99 || snakeArray[0].x <= 0 ) {
+    	loadSnake();
+    }
+    if(snakeArray[0].y >= 99 || snakeArray[0].y <= 0 ) {
+    	loadSnake();
+    }
+    if(npsnakeArray[0].x >= 100 || npsnakeArray[0].x <= 0 ) {
+    	loadNpSnake();
+    }
+    if(npsnakeArray[0].y >= 100 || npsnakeArray[0].y <= 0 ) {
+    	loadNpSnake();
+    }
 } // end render model
 
 function loadModels() {
 	for (var i = 0; i < 100; i++) {
         for (var j = 0; j < 100; j++) {
             if (i == 0 || i == 99 || j == 0 || j == 99) {
-                walls.push(new Cube(i, j, "wall"));
+                walls.push(new Cube(i, j));
             }
         }
     }
 	for (var i = 53; i <= 55; i++) {
-        snakeArray.push(new Cube(50, i, "snake"));
+        snakeArray.push(new Cube(50, i));
+    }
+	for (var i = 51; i <= 55; i++) {
+        npsnakeArray.push(new Cube(i, 70));
     }
 	dir = 0;
+	dirnp = 3;
+	var maxT = 90;
+	var minT = 10;
+	randomDirTic = Math.floor(Math.random() * (maxT - minT)) + minT;
     
 } // end load models
 
 function loadSnake() {
 	snakeArray = [];
 	for (var i = 53; i <= 55; i++) {
-        snakeArray.push(new Cube(50, i, "snake"));
+        snakeArray.push(new Cube(50, i));
     }
 	dir = 0;
+}
+
+function loadNpSnake() {
+	npsnakeArray = [];
+	for (var i = 51; i <= 55; i++) {
+        npsnakeArray.push(new Cube(i, 70));
+    }
+	dirnp = 3;
+	dirTic = 0;
+	var maxT = 90;
+	var minT = 10;
+	randomDirTic = Math.floor(Math.random() * (maxT - minT)) + minT;
 }
 
 function loadFood() {
@@ -477,7 +611,7 @@ function loadFood() {
 	var min = 1;
 	var randomX = Math.floor(Math.random() * (max - min)) + min;
 	var randomY = Math.floor(Math.random() * (max - min)) + min;
-	foodArray.push(new Cube(randomX, randomY, "food"));
+	foodArray.push(new Cube(randomX, randomY));
 	
 }
 
